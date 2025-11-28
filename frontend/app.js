@@ -123,7 +123,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // GeoJSON katmanı
   let geoLayer = null;
 
-  function loadGeoJsonLayer() {
+    function loadGeoJsonLayer() {
     fetch("geo/scenarios.geojson")
       .then((res) => res.json())
       .then((data) => {
@@ -143,11 +143,26 @@ window.addEventListener("DOMContentLoaded", () => {
           },
           onEachFeature: (feature, layer) => {
             const name = feature.properties?.name || "Bölge";
-            const scen = feature.properties?.scenario || "-";
+            const scen = feature.properties?.scenario || "merkez";
             const risk = feature.properties?.risk || "-";
+
+            // Popup yine kalsın
             layer.bindPopup(
               `<b>${name}</b><br/>Senaryo: ${scen}<br/>Risk: ${risk}`
             );
+
+            // Poligona tıklayınca senaryoyu seç + analiz + tahmin
+            layer.on("click", () => {
+              // Senaryo seçiciyi güncelle
+              scenarioSelect.value = scen;
+
+              // Haritayı bu senaryoya göre güncelle
+              updateMapForScenario(scen);
+
+              // Analiz ve tahmini otomatik tetikle
+              analyzeBtn.click();
+              predictBtn.click();
+            });
           }
         }).addTo(map);
       })
@@ -155,6 +170,7 @@ window.addEventListener("DOMContentLoaded", () => {
         console.error("GeoJSON yüklenirken hata:", err);
       });
   }
+
 
   function updateMapForScenario(scenarioKey) {
     const data = SCENARIOS[scenarioKey] || SCENARIOS[defaultScenario];
