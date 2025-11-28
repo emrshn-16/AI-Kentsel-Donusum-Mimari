@@ -1,0 +1,12 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Sanal ortam
+.venv/
+
+# VS Code
+.vscode/
+
+# Geçici / kilit dosyaları
+*.log

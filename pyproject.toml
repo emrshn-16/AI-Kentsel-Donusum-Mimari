@@ -1,0 +1,32 @@
+[project]
+name = "emre"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13.9"
+dependencies = [
+    "fastapi[standard]>=0.122.0",
+]
+python -m venv venv
+venv\Scripts\activate
+source venv/bin/activate
+pip install -r backend/requirements.txt
+ai_kentsel_donusum/
+│
+├─ backend/
+│   ├─ main.py
+│   ├─ ai_models.py
+│   ├─ data_pipeline.py
+│   └─ requirements.txt
+│
+├─ frontend/
+│   ├─ index.html
+│   ├─ app.js
+│   └─ styles.css
+│
+├─ data/
+└─ README.md
+cd backend
+uvicorn main:app --reload
+http://127.0.0.1:8000/
+

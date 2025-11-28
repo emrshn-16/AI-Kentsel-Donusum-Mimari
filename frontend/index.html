@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Kentsel Dönüşüm - Demo Panel</title>
+
+  <!-- Leaflet CSS (harita kütüphanesi) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      padding: 16px 24px;
+      background: #020617;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    header span {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px 32px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: #2563eb;
+      color: #f9fafb;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      padding: 16px 18px;
+      border: 1px solid #1e293b;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.8);
+    }
+
+    .card h2 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      color: #e5e7eb;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: 1px solid #334155;
+      margin-bottom: 8px;
+      color: #9ca3af;
+    }
+
+    .row {
+      margin: 6px 0;
+      font-size: 14px;
+    }
+
+    .row span.label {
+      color: #9ca3af;
+    }
+
+    .row span.value {
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .risk-list {
+      padding-left: 18px;
+      margin: 4px 0 0 0;
+      font-size: 13px;
+      color: #f97316;
+    }
+
+    .warning {
+      font-size: 12px;
+      color: #f97316;
+      margin-top: 6px;
+    }
+
+    .raw-json {
+      margin-top: 12px;
+      padding: 8px;
+      background: #020617;
+      border-radius: 8px;
+      font-family: "Consolas", monospace;
+      font-size: 11px;
+      color: #9ca3af;
+      white-space: pre-wrap;
+      border: 1px dashed #334155;
+    }
+
+    .status {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #22c55e;
+    }
+
+    .status.error {
+      color: #ef4444;
+    }
+
+    .slider-row {
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .slider-row input[type="range"] {
+      width: 100%;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .chip-low {
+      background: rgba(22, 163, 74, 0.15);
+      border: 1px solid #22c55e;
+      color: #bbf7d0;
+    }
+
+    .chip-mid {
+      background: rgba(234, 179, 8, 0.15);
+      border: 1px solid #eab308;
+      color: #fef08a;
+    }
+
+    .chip-high {
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid #ef4444;
+      color: #fecaca;
+    }
+
+    input[type="text"], select {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+      background: #020617;
+      color: #e5e7eb;
+      min-width: 180px;
+    }
+
+    #map {
+      height: 260px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+
+      .buttons {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>AI Kentsel Dönüşüm Mimarı</h1>
+    <span>Demo Analiz & Tahmin Paneli</span>
+  </div>
+  <span>Backend: http://127.0.0.1:8001</span>
+</header>
+
+<div class="container">
+  <div class="buttons">
+    <div>
+      <label for="scenarioSelect" style="font-size: 12px; color: #9ca3af; display:block; margin-bottom:4px;">
+        Senaryo:
+      </label>
+      <select id="scenarioSelect">
+        <option value="merkez">Yoğun Merkez</option>
+        <option value="gelisen">Gelişen Bölge</option>
+        <option value="yesil">Yeşil Odaklı Bölge</option>
+      </select>
+    </div>
+
+    <button id="analyzeBtn">Analiz Yap</button>
+    <button id="predictBtn">Tahmin Al</button>
+
+    <div>
+      <label for="projectName" style="font-size: 12px; color: #9ca3af; display:block; margin-bottom:4px;">
+        Proje adı:
+      </label>
+      <input type="text" id="projectName" placeholder="Örn: Merkez - 2030 senaryosu" />
+    </div>
+    <button id="saveProjectBtn">Projeyi Kaydet</button>
+  </div>
+
+  <div class="grid">
+    <!-- Analiz Kartı -->
+    <div class="card">
+      <div class="tag">Analiz Çıktısı</div>
+      <h2>Alan Analizi</h2>
+
+      <div class="row">
+        <span class="label">Yeşil Alan Oranı: </span>
+        <span class="value" id="yesilOran">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Nüfus Yoğunluğu: </span>
+        <span class="value" id="nufusYogunlugu">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Öneri: </span>
+        <span class="value" id="analizOneri">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Riskler: </span>
+      </div>
+      <ul class="risk-list" id="riskListe"></ul>
+
+      <div id="analyzeStatus" class="status"></div>
+      <div id="analyzeRaw" class="raw-json"></div>
+    </div>
+
+    <!-- Tahmin Kartı -->
+    <div class="card">
+      <div class="tag">Tahmin Çıktısı</div>
+      <h2>2030 Projeksiyonu</h2>
+
+      <div class="row">
+        <span class="label">Konut İhtiyacı 2030: </span>
+        <span class="value" id="konutIhtiyaci">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Ulaşım Yük Artışı: </span>
+        <span class="value" id="ulasimArtis">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Öneri: </span>
+        <span class="value" id="tahminOneri">-</span>
+      </div>
+
+      <div id="predictStatus" class="status"></div>
+      <div id="predictRaw" class="raw-json"></div>
+    </div>
+
+    <!-- Simülasyon Kartı -->
+    <div class="card">
+      <div class="tag">Simülasyon</div>
+      <h2>Yeşil Alan Etki Simülasyonu</h2>
+
+      <div class="row">
+        <span class="label">Mevcut Yeşil Alan: </span>
+        <span class="value" id="simCurrentGreen">-</span>
+      </div>
+
+      <div class="slider-row">
+        <span class="label">Hedef Yeşil Alan Oranı:</span>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <input type="range" id="greenSlider" min="5" max="45" value="18" />
+          <span class="value" id="simTargetGreen">18%</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="label">Tahmini Risk Seviyesi: </span>
+        <span id="simRiskChip" class="chip chip-mid">-</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Beklenen Etki: </span>
+        <span class="value" id="simEffectText">Analiz sonrası güncellenecek.</span>
+      </div>
+
+      <div class="warning">
+        Not: Bu simülasyon demo amaçlıdır; gerçek modellerle detaylandırılabilir.
+      </div>
+    </div>
+
+    <!-- Proje Listesi Kartı -->
+    <div class="card">
+      <div class="tag">Projeler</div>
+      <h2>Kaydedilen Senaryolar</h2>
+
+      <ul id="projectList" class="risk-list"></ul>
+      <div id="projectStatus" class="status"></div>
+      <div class="warning">
+        Not: Şu an projeler sunucu hafızasında tutuluyor. Gerçek sistemde veritabanına yazılacak.
+      </div>
+    </div>
+
+    <!-- Harita Kartı -->
+    <div class="card">
+      <div class="tag">Harita</div>
+      <h2>Senaryo Harita Önizleme</h2>
+      <div id="map"></div>
+      <div class="warning">
+        Harita, seçilen senaryonun temsilî konumunu göstermektedir.
+      </div>
+    </div>
+
+    <!-- AI Risk Skoru Kartı -->
+    <div class="card">
+      <div class="tag">AI</div>
+      <h2>AI Risk Skoru</h2>
+
+      <div class="row">
+        <span class="label">Nüfus Yoğunluğu:</span><br />
+        <select id="aiPopDensity">
+          <option value="dusuk">Düşük</option>
+          <option value="orta" selected>Orta</option>
+          <option value="yuksek">Yüksek</option>
+          <option value="cok_yuksek">Çok Yüksek</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <span class="label">Sel Riski (0-10):</span>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <input type="range" id="aiFlood" min="0" max="10" value="3" />
+          <span class="value" id="aiFloodLabel">3</span>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <span class="label">Altyapı Durumu (0-10, 10 iyi):</span>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <input type="range" id="aiInfra" min="0" max="10" value="7" />
+          <span class="value" id="aiInfraLabel">7</span>
+        </div>
+      </div>
+
+      <button id="aiRiskBtn" style="margin-top:10px;">AI Risk Hesapla</button>
+
+      <div class="row" style="margin-top:10px;">
+        <span class="label">Risk Skoru (0-100): </span>
+        <span class="value" id="aiRiskScore">-</span>
+      </div>
+      <div class="row">
+        <span class="label">Seviye: </span>
+        <span class="value" id="aiRiskLevel">-</span>
+      </div>
+      <div class="row">
+        <span class="label">Açıklama: </span>
+        <span class="value" id="aiRiskExplanation">-</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Leaflet JS + kendi JS dosyamız -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+<script src="app.js"></script>
+</body>
+</html>
