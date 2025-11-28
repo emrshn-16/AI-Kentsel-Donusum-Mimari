@@ -120,6 +120,42 @@ window.addEventListener("DOMContentLoaded", () => {
     fillOpacity: 0.25
   }).addTo(map);
 
+  // GeoJSON katmanı
+  let geoLayer = null;
+
+  function loadGeoJsonLayer() {
+    fetch("geo/scenarios.geojson")
+      .then((res) => res.json())
+      .then((data) => {
+        if (geoLayer) {
+          map.removeLayer(geoLayer);
+        }
+        geoLayer = L.geoJSON(data, {
+          style: (feature) => {
+            const scen = feature.properties?.scenario || "merkez";
+            const color = getScenarioColor(scen);
+            return {
+              color,
+              weight: 2,
+              fillColor: color,
+              fillOpacity: 0.15
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties?.name || "Bölge";
+            const scen = feature.properties?.scenario || "-";
+            const risk = feature.properties?.risk || "-";
+            layer.bindPopup(
+              `<b>${name}</b><br/>Senaryo: ${scen}<br/>Risk: ${risk}`
+            );
+          }
+        }).addTo(map);
+      })
+      .catch((err) => {
+        console.error("GeoJSON yüklenirken hata:", err);
+      });
+  }
+
   function updateMapForScenario(scenarioKey) {
     const data = SCENARIOS[scenarioKey] || SCENARIOS[defaultScenario];
     const color = getScenarioColor(scenarioKey);
@@ -456,4 +492,5 @@ window.addEventListener("DOMContentLoaded", () => {
   aiInfraLabel.textContent = aiInfra.value;
   initRiskChart();
   updateRiskChart(lastBaseGreen, parseInt(greenSlider.value, 10));
+  loadGeoJsonLayer();
 });

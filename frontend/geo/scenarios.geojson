@@ -1,0 +1,69 @@
+{
+  "type": "FeatureCollection",
+  "name": "ai_kentsel_scenarios",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Yoğun Merkez Bölgesi",
+        "scenario": "merkez",
+        "risk": "yüksek"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [28.96, 41.02],
+            [28.99, 41.03],
+            [29.01, 41.01],
+            [28.99, 40.99],
+            [28.96, 40.99],
+            [28.96, 41.02]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gelişen Bölge",
+        "scenario": "gelisen",
+        "risk": "orta"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [29.10, 41.00],
+            [29.14, 41.02],
+            [29.18, 40.99],
+            [29.15, 40.97],
+            [29.11, 40.97],
+            [29.10, 41.00]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Yeşil Odaklı Bölge",
+        "scenario": "yesil",
+        "risk": "düşük"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [28.93, 41.05],
+            [28.96, 41.06],
+            [28.99, 41.04],
+            [28.97, 41.02],
+            [28.93, 41.02],
+            [28.93, 41.05]
+          ]
+        ]
+      }
+    }
+  ]
+}
