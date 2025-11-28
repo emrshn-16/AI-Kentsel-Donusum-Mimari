@@ -364,15 +364,21 @@
       </div>
     </div>
 
-    <!-- Harita Kartı -->
+       <!-- Harita Kartı -->
     <div class="card">
       <div class="tag">Harita</div>
       <h2>Senaryo Harita Önizleme</h2>
       <div id="map"></div>
+
+      <button id="heatToggleBtn" style="margin-top:10px;">
+        Isı Haritasını Aç/Kapat
+      </button>
+
       <div class="warning">
         Harita, seçilen senaryonun temsilî konumunu göstermektedir.
       </div>
     </div>
+
 
     <!-- AI Risk Skoru Kartı -->
     <div class="card">
@@ -434,13 +440,12 @@
   </div>
 </div>
 
-<!-- Leaflet JS + Chart.js + kendi JS dosyamız -->
+<!-- Leaflet JS + Leaflet.heat + Chart.js + kendi JS dosyamız -->
 <script
   src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""
 ></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="app.js"></script>
-</body>
-</html>

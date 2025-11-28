@@ -49,6 +49,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const riskChartCanvas = document.getElementById("riskChart");
   let riskChart = null;
 
+  // Heatmap butonu
+  const heatToggleBtn = document.getElementById("heatToggleBtn");
+
   let lastBaseGreen = 18;
 
   // ---------------------------
@@ -98,6 +101,28 @@ window.addEventListener("DOMContentLoaded", () => {
     return "#3b82f6";
   }
 
+  // Isı haritası için örnek yoğunluk noktaları (lat, lng, intensity)
+  const HEAT_POINTS = {
+    merkez: [
+      [41.015, 28.979, 0.9],
+      [41.02, 28.97, 0.8],
+      [41.01, 28.99, 0.7],
+      [41.00, 28.98, 0.6]
+    ],
+    gelisen: [
+      [40.99, 29.13, 0.6],
+      [41.00, 29.15, 0.7],
+      [40.98, 29.16, 0.5],
+      [40.97, 29.14, 0.4]
+    ],
+    yesil: [
+      [41.03, 28.95, 0.3],
+      [41.04, 28.96, 0.25],
+      [41.02, 28.94, 0.2],
+      [41.05, 28.97, 0.15]
+    ]
+  };
+
   const defaultScenario = "merkez";
   const defaultData = SCENARIOS[defaultScenario];
 
@@ -120,10 +145,39 @@ window.addEventListener("DOMContentLoaded", () => {
     fillOpacity: 0.25
   }).addTo(map);
 
-  // GeoJSON katmanı
+  // GeoJSON katmanı + heat layer
   let geoLayer = null;
+  let heatLayer = null;
+  let heatOn = false;
 
-    function loadGeoJsonLayer() {
+  function updateHeatLayerForScenario(scenarioKey) {
+    if (!window.L || !L.heatLayer) return;
+
+    const points = HEAT_POINTS[scenarioKey] || [];
+    if (!heatOn) {
+      // Açık değilse hiç dokunma
+      return;
+    }
+
+    if (!points.length) {
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+        heatLayer = null;
+      }
+      return;
+    }
+
+    if (!heatLayer) {
+      heatLayer = L.heatLayer(points, {
+        radius: 25,
+        blur: 15
+      }).addTo(map);
+    } else {
+      heatLayer.setLatLngs(points);
+    }
+  }
+
+  function loadGeoJsonLayer() {
     fetch("geo/scenarios.geojson")
       .then((res) => res.json())
       .then((data) => {
@@ -153,13 +207,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
             // Poligona tıklayınca senaryoyu seç + analiz + tahmin
             layer.on("click", () => {
-              // Senaryo seçiciyi güncelle
               scenarioSelect.value = scen;
-
-              // Haritayı bu senaryoya göre güncelle
               updateMapForScenario(scen);
-
-              // Analiz ve tahmini otomatik tetikle
               analyzeBtn.click();
               predictBtn.click();
             });
@@ -170,7 +219,6 @@ window.addEventListener("DOMContentLoaded", () => {
         console.error("GeoJSON yüklenirken hata:", err);
       });
   }
-
 
   function updateMapForScenario(scenarioKey) {
     const data = SCENARIOS[scenarioKey] || SCENARIOS[defaultScenario];
@@ -186,11 +234,31 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     map.setView(data.center, 12);
+
+    // Isı haritasını da güncelle
+    updateHeatLayerForScenario(scenarioKey);
   }
 
   scenarioSelect.addEventListener("change", () => {
     updateMapForScenario(scenarioSelect.value);
   });
+
+  // Isı haritası aç/kapat
+  if (heatToggleBtn) {
+    heatToggleBtn.addEventListener("click", () => {
+      heatOn = !heatOn;
+      if (!heatOn) {
+        if (heatLayer) {
+          map.removeLayer(heatLayer);
+          heatLayer = null;
+        }
+        heatToggleBtn.textContent = "Isı Haritasını Aç/Kapat";
+      } else {
+        updateHeatLayerForScenario(scenarioSelect.value);
+        heatToggleBtn.textContent = "Isı Haritasını Aç/Kapat";
+      }
+    });
+  }
 
   // ---------------------------
   //  YARDIMCI FONKSİYONLAR
