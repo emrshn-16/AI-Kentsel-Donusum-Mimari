@@ -45,6 +45,10 @@ window.addEventListener("DOMContentLoaded", () => {
   const aiRiskLevel = document.getElementById("aiRiskLevel");
   const aiRiskExplanation = document.getElementById("aiRiskExplanation");
 
+  // Grafik için
+  const riskChartCanvas = document.getElementById("riskChart");
+  let riskChart = null;
+
   let lastBaseGreen = 18;
 
   // ---------------------------
@@ -145,6 +149,40 @@ window.addEventListener("DOMContentLoaded", () => {
     return parseInt(String(str).replace("%", "").trim(), 10);
   }
 
+  // Grafik başlatma
+  function initRiskChart() {
+    if (!riskChartCanvas || !window.Chart) return;
+
+    riskChart = new Chart(riskChartCanvas, {
+      type: "line",
+      data: {
+        labels: ["Mevcut Yeşil (%)", "Hedef Yeşil (%)"],
+        datasets: [
+          {
+            label: "Yeşil Alan Oranı",
+            data: [lastBaseGreen, parseInt(greenSlider.value, 10)],
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 60
+          }
+        }
+      }
+    });
+  }
+
+  function updateRiskChart(current, target) {
+    if (!riskChart) return;
+    riskChart.data.datasets[0].data = [current, target];
+    riskChart.update();
+  }
+
   function updateSimulation() {
     const target = parseInt(greenSlider.value, 10);
     simTargetGreen.textContent = `${target}%`;
@@ -178,6 +216,8 @@ window.addEventListener("DOMContentLoaded", () => {
     simRiskChip.textContent = level;
     simRiskChip.className = `chip ${chipClass}`;
     simEffectText.textContent = text;
+
+    updateRiskChart(base, target);
   }
 
   greenSlider.addEventListener("input", updateSimulation);
@@ -414,4 +454,6 @@ window.addEventListener("DOMContentLoaded", () => {
   updateMapForScenario(defaultScenario);
   aiFloodLabel.textContent = aiFlood.value;
   aiInfraLabel.textContent = aiInfra.value;
+  initRiskChart();
+  updateRiskChart(lastBaseGreen, parseInt(greenSlider.value, 10));
 });
