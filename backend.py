@@ -3,12 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Dict
-from itertools import count
+import sqlite3
+from pathlib import Path
+
+# =========================
+#  UYGULAMA TANIMI
+# =========================
 
 app = FastAPI(
     title="AI Kentsel Analiz API",
     description="Kentsel veri analizi, tahmin, simülasyon ve proje raporlama için demo API",
-    version="1.3.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -22,12 +27,12 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "AI Kentsel Analiz API çalışıyor! (v1.3 – AI risk skoru ile)"}
+    return {"message": "AI Kentsel Analiz API çalışıyor! (v2.0 – SQLite proje kaydı ile)"}
 
 
-# -------------------------
+# =========================
 #  SENARYO VERİLERİ
-# -------------------------
+# =========================
 
 ANALYZE_SCENARIOS: Dict[str, Dict] = {
     "merkez": {
@@ -69,6 +74,46 @@ PREDICT_SCENARIOS: Dict[str, Dict] = {
 }
 
 
+# =========================
+#  DATABASE (SQLite)
+# =========================
+
+DB_PATH = Path(__file__).parent / "projects.db"
+
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # satırları sözlük gibi kullanabilmek için
+    return conn
+
+
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            scenario TEXT NOT NULL,
+            target_green INTEGER NOT NULL,
+            notes TEXT
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+
+# =========================
+#  HARİTA / ANALİZ / TAHMİN
+# =========================
+
 @app.post("/upload-map")
 def upload_map():
     return {
@@ -98,9 +143,9 @@ def predict(scenario: str = "merkez"):
     }
 
 
-# -------------------------
-#  PROJE KAYIT SİSTEMİ (DEMO)
-# -------------------------
+# =========================
+#  PROJE KAYIT SİSTEMİ – SQLite
+# =========================
 
 class ProjectCreate(BaseModel):
     name: str
@@ -113,39 +158,79 @@ class Project(ProjectCreate):
     id: int
 
 
-PROJECTS: Dict[int, Project] = {}
-_project_id_counter = count(1)
+def row_to_project(row: sqlite3.Row) -> Project:
+    return Project(
+        id=row["id"],
+        name=row["name"],
+        scenario=row["scenario"],
+        target_green=row["target_green"],
+        notes=row["notes"],
+    )
 
 
 @app.post("/projects")
 def create_project(project: ProjectCreate):
-    pid = next(_project_id_counter)
-    proj = Project(id=pid, **project.dict())
-    PROJECTS[pid] = proj
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO projects (name, scenario, target_green, notes)
+        VALUES (?, ?, ?, ?)
+        """,
+        (project.name, project.scenario, project.target_green, project.notes),
+    )
+    conn.commit()
+    pid = cur.lastrowid
+    cur.execute("SELECT * FROM projects WHERE id = ?", (pid,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=500, detail="Proje kaydedilemedi")
+
+    proj = row_to_project(row)
     return {"status": "success", "project": proj}
 
 
 @app.get("/projects")
 def list_projects():
-    return {
-        "status": "success",
-        "projects": list(PROJECTS.values()),
-    }
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM projects ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+
+    projects = [row_to_project(r) for r in rows]
+    return {"status": "success", "projects": projects}
 
 
 @app.get("/projects/{project_id}")
 def get_project(project_id: int):
-    proj = PROJECTS.get(project_id)
-    if not proj:
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
         raise HTTPException(status_code=404, detail="Proje bulunamadı")
+
+    proj = row_to_project(row)
     return {"status": "success", "project": proj}
 
 
 @app.get("/projects/{project_id}/report", response_class=HTMLResponse)
 def project_report(project_id: int):
-    proj = PROJECTS.get(project_id)
-    if not proj:
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
         raise HTTPException(status_code=404, detail="Proje bulunamadı")
+
+    proj = row_to_project(row)
 
     analysis = ANALYZE_SCENARIOS.get(proj.scenario, ANALYZE_SCENARIOS["merkez"])
     prediction = PREDICT_SCENARIOS.get(proj.scenario, PREDICT_SCENARIOS["merkez"])
@@ -284,7 +369,7 @@ def project_report(project_id: int):
                     Gerçek proje aşamasında bu yapı; gerçek CBS verileri, nüfus projeksiyonları
                     ve gelişmiş yapay zekâ modelleriyle zenginleştirilebilir.
                 </p>
-                <p class="chip">Demo Rapor v1.1</p>
+                <p class="chip">Demo Rapor v2.0</p>
             </div>
 
             <div class="footer">
@@ -297,21 +382,63 @@ def project_report(project_id: int):
     return html
 
 
-# -------------------------
+# =========================
+#  PROJE KARŞILAŞTIRMA
+# =========================
+
+@app.get("/compare-projects")
+def compare_projects(a: int, b: int):
+    """
+    İki projeyi ID bazında karşılaştırır:
+    - Projelerin temel bilgileri
+    - Senaryo bazlı analiz ve 2030 projeksiyonu
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM projects WHERE id IN (?, ?)", (a, b))
+    rows = cur.fetchall()
+    conn.close()
+
+    if len(rows) < 2:
+        raise HTTPException(status_code=404, detail="Proje(ler) bulunamadı")
+
+    proj_map: Dict[int, Project] = {r["id"]: row_to_project(r) for r in rows}
+    if a not in proj_map or b not in proj_map:
+        raise HTTPException(status_code=404, detail="Proje(ler) bulunamadı")
+
+    def build_summary(p: Project):
+        analysis = ANALYZE_SCENARIOS.get(p.scenario, ANALYZE_SCENARIOS["merkez"])
+        prediction = PREDICT_SCENARIOS.get(p.scenario, PREDICT_SCENARIOS["merkez"])
+        return {
+            "id": p.id,
+            "name": p.name,
+            "scenario": p.scenario,
+            "target_green": p.target_green,
+            "analysis": analysis,
+            "prediction": prediction,
+        }
+
+    return {
+        "status": "success",
+        "a": build_summary(proj_map[a]),
+        "b": build_summary(proj_map[b]),
+    }
+
+
+# =========================
 #  AI RİSK SKORU (DEMO MODEL)
-# -------------------------
+# =========================
 
 class AIRiskRequest(BaseModel):
-    scenario: str
-    green_ratio: int          # 0-100
-    population_density: str   # "dusuk", "orta", "yuksek", "cok_yuksek"
-    flood_risk: int           # 0-10
-    infrastructure_score: int # 0-10 (10 iyi, 0 çok kötü)
+  scenario: str
+  green_ratio: int          # 0-100
+  population_density: str   # "dusuk", "orta", "yuksek", "cok_yuksek"
+  flood_risk: int           # 0-10
+  infrastructure_score: int # 0-10 (10 iyi, 0 çok kötü)
 
 
 @app.post("/ai/risk-score")
 def ai_risk_score(req: AIRiskRequest):
-    # 1) Nüfus yoğunluğuna göre başlangıç risk
     base_map = {
         "dusuk": 20,
         "orta": 40,
@@ -320,24 +447,15 @@ def ai_risk_score(req: AIRiskRequest):
     }
     score = base_map.get(req.population_density, 50)
 
-    # 2) Yeşil alan etkisi: yeşil alan arttıkça risk azalsın
-    # referans yeşil %20 gibi düşünelim
     score -= (req.green_ratio - 20) * 0.7
-
-    # 3) Sel riski 0-10 → max +30 puan
     score += req.flood_risk * 3
-
-    # 4) Altyapı kötü ise risk artsın
-    # infrastructure_score 0-10, 10 iyi, 0 kötü
     score += (10 - req.infrastructure_score) * 2
 
-    # 5) Senaryoya göre küçük bir ayar
     if req.scenario == "merkez":
         score += 5
     elif req.scenario == "yesil":
         score -= 5
 
-    # Skoru 0-100 aralığına sıkıştır
     score = int(round(max(0, min(100, score))))
 
     if score < 35:

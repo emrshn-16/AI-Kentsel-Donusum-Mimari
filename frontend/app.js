@@ -34,6 +34,15 @@ window.addEventListener("DOMContentLoaded", () => {
   const projectList = document.getElementById("projectList");
   const projectStatus = document.getElementById("projectStatus");
 
+  // Karşılaştırma kartı
+  const compareSelectA = document.getElementById("compareSelectA");
+  const compareSelectB = document.getElementById("compareSelectB");
+  const compareBtn = document.getElementById("compareBtn");
+  const compareStatus = document.getElementById("compareStatus");
+  const compareResult = document.getElementById("compareResult");
+
+  let cachedProjects = [];
+
   // AI Risk kartı
   const aiPopDensity = document.getElementById("aiPopDensity");
   const aiFlood = document.getElementById("aiFlood");
@@ -73,7 +82,7 @@ window.addEventListener("DOMContentLoaded", () => {
     gelisen: {
       center: [40.99, 29.13],
       area: [
-        [41.00, 29.10],
+        [41.0, 29.1],
         [41.02, 29.14],
         [40.99, 29.18],
         [40.97, 29.15],
@@ -107,11 +116,11 @@ window.addEventListener("DOMContentLoaded", () => {
       [41.015, 28.979, 0.9],
       [41.02, 28.97, 0.8],
       [41.01, 28.99, 0.7],
-      [41.00, 28.98, 0.6]
+      [41.0, 28.98, 0.6]
     ],
     gelisen: [
       [40.99, 29.13, 0.6],
-      [41.00, 29.15, 0.7],
+      [41.0, 29.15, 0.7],
       [40.98, 29.16, 0.5],
       [40.97, 29.14, 0.4]
     ],
@@ -155,7 +164,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const points = HEAT_POINTS[scenarioKey] || [];
     if (!heatOn) {
-      // Açık değilse hiç dokunma
       return;
     }
 
@@ -200,12 +208,10 @@ window.addEventListener("DOMContentLoaded", () => {
             const scen = feature.properties?.scenario || "merkez";
             const risk = feature.properties?.risk || "-";
 
-            // Popup yine kalsın
             layer.bindPopup(
               `<b>${name}</b><br/>Senaryo: ${scen}<br/>Risk: ${risk}`
             );
 
-            // Poligona tıklayınca senaryoyu seç + analiz + tahmin
             layer.on("click", () => {
               scenarioSelect.value = scen;
               updateMapForScenario(scen);
@@ -235,7 +241,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     map.setView(data.center, 12);
 
-    // Isı haritasını da güncelle
     updateHeatLayerForScenario(scenarioKey);
   }
 
@@ -252,10 +257,8 @@ window.addEventListener("DOMContentLoaded", () => {
           map.removeLayer(heatLayer);
           heatLayer = null;
         }
-        heatToggleBtn.textContent = "Isı Haritasını Aç/Kapat";
       } else {
         updateHeatLayerForScenario(scenarioSelect.value);
-        heatToggleBtn.textContent = "Isı Haritasını Aç/Kapat";
       }
     });
   }
@@ -449,9 +452,11 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       projectList.innerHTML = "";
+      cachedProjects = data.projects || [];
 
-      if (data && Array.isArray(data.projects)) {
-        data.projects.forEach((p) => {
+      // Proje liste kartı
+      if (Array.isArray(cachedProjects)) {
+        cachedProjects.forEach((p) => {
           const li = document.createElement("li");
 
           const text = document.createElement("span");
@@ -472,9 +477,27 @@ window.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      projectStatus.textContent = `Toplam proje: ${
-        data.projects ? data.projects.length : 0
-      }`;
+      // Karşılaştırma select'lerini doldur
+      if (compareSelectA && compareSelectB) {
+        compareSelectA.innerHTML = "";
+        compareSelectB.innerHTML = "";
+
+        cachedProjects.forEach((p) => {
+          const label = `#${p.id} • ${p.name}`;
+
+          const optA = document.createElement("option");
+          optA.value = p.id;
+          optA.textContent = label;
+          compareSelectA.appendChild(optA);
+
+          const optB = document.createElement("option");
+          optB.value = p.id;
+          optB.textContent = label;
+          compareSelectB.appendChild(optB);
+        });
+      }
+
+      projectStatus.textContent = `Toplam proje: ${cachedProjects.length}`;
       projectStatus.classList.remove("error");
     } catch (err) {
       console.error(err);
@@ -526,6 +549,74 @@ window.addEventListener("DOMContentLoaded", () => {
       projectStatus.classList.add("error");
     }
   });
+
+  // ---------------------------
+  //  PROJE KARŞILAŞTIRMA
+  // ---------------------------
+
+  if (compareBtn) {
+    compareBtn.addEventListener("click", async () => {
+      try {
+        if (!cachedProjects.length) {
+          compareStatus.textContent = "Önce en az iki proje kaydetmelisiniz.";
+          compareStatus.classList.add("error");
+          return;
+        }
+
+        const aId = parseInt(compareSelectA.value, 10);
+        const bId = parseInt(compareSelectB.value, 10);
+
+        if (!aId || !bId) {
+          compareStatus.textContent = "Lütfen iki proje seçin.";
+          compareStatus.classList.add("error");
+          return;
+        }
+
+        if (aId === bId) {
+          compareStatus.textContent =
+            "Karşılaştırmak için farklı projeler seçmelisiniz.";
+          compareStatus.classList.add("error");
+          return;
+        }
+
+        compareStatus.textContent = "Karşılaştırma yapılıyor...";
+        compareStatus.classList.remove("error");
+        compareResult.textContent = "";
+
+        const res = await fetch(
+          `${API_BASE}/compare-projects?a=${aId}&b=${bId}`
+        );
+        const data = await res.json();
+
+        if (data.status === "success") {
+          const a = data.a;
+          const b = data.b;
+
+          compareResult.textContent = `
+A Projesi: #${a.id} • ${a.name} • Senaryo: ${a.scenario} • Hedef Yeşil: %${a.target_green}
+B Projesi: #${b.id} • ${b.name} • Senaryo: ${b.scenario} • Hedef Yeşil: %${b.target_green}
+
+Yeşil Alan Oranı:
+- A: ${a.analysis.yesil_alan_orani}, Nüfus: ${a.analysis.nufus_yogunlugu}
+- B: ${b.analysis.yesil_alan_orani}, Nüfus: ${b.analysis.nufus_yogunlugu}
+
+2030 Projeksiyonu:
+- A: Konut ihtiyacı: ${a.prediction.konut_ihtiyaci_2030}, Ulaşım yükü: ${a.prediction.ulasim_yuk_artisi}
+- B: Konut ihtiyacı: ${b.prediction.konut_ihtiyaci_2030}, Ulaşım yükü: ${b.prediction.ulasim_yuk_artisi}
+          `;
+
+          compareStatus.textContent = "Karşılaştırma tamamlandı.";
+        } else {
+          compareStatus.textContent = "Karşılaştırma yapılamadı.";
+          compareStatus.classList.add("error");
+        }
+      } catch (err) {
+        console.error(err);
+        compareStatus.textContent = "Karşılaştırma sırasında hata oluştu.";
+        compareStatus.classList.add("error");
+      }
+    });
+  }
 
   // ---------------------------
   //  AI RİSK BUTONU

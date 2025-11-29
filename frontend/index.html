@@ -229,6 +229,13 @@
       width: 100%;
       height: 220px;
     }
+    #compareResult {
+  white-space: pre-line;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
   </style>
 </head>
 <body>
@@ -361,6 +368,30 @@
       <div id="projectStatus" class="status"></div>
       <div class="warning">
         Not: Şu an projeler sunucu hafızasında tutuluyor. Gerçek sistemde veritabanına yazılacak.
+      </div>
+    </div>
+    <!-- Proje Karşılaştırma Kartı -->
+    <div class="card">
+      <div class="tag">Karşılaştırma</div>
+      <h2>Projeleri Karşılaştır</h2>
+
+      <div class="row">
+        <span class="label">Proje A:</span><br />
+        <select id="compareSelectA"></select>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <span class="label">Proje B:</span><br />
+        <select id="compareSelectB"></select>
+      </div>
+
+      <button id="compareBtn" style="margin-top:10px;">Karşılaştır</button>
+
+      <div id="compareStatus" class="status"></div>
+      <div id="compareResult" class="raw-json"></div>
+
+      <div class="warning">
+        Not: Seçtiğiniz iki projenin senaryo, hedef yeşil alan oranı, analiz ve 2030 projeksiyonu yan yana özetlenir.
       </div>
     </div>
 
